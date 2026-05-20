@@ -1,0 +1,204 @@
+/* client/src/App.css */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f5f7fa;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* ── Header ───────────────────────── */
+.header {
+  background: #1a56db;
+  color: white;
+  padding: 2rem;
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.subtitle {
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Main layout ──────────────────── */
+.main {
+  max-width: 680px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Card ─────────────────────────── */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 {
+  font-size: 1.1rem;
+  color: #444;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Create form ──────────────────── */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.input {
+  padding: 0.65rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: #1a56db;
+}
+.input:disabled {
+  background: #f9f9f9;
+  cursor: not-allowed;
+}
+
+/* ── Buttons ──────────────────────── */
+.btn {
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #1a56db;
+  color: white;
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #1447c0;
+}
+
+.btn-delete {
+  background: transparent;
+  color: #bbb;
+  padding: 0.25rem 0.5rem;
+}
+.btn-delete:hover {
+  color: #e53e3e;
+}
+
+/* ── Error banner ─────────────────── */
+.error-banner {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #c53030;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dismiss {
+  background: none;
+  border: none;
+  color: #c53030;
+  cursor: pointer;
+}
+
+/* ── Task list ────────────────────── */
+.task-count {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #888;
+}
+.muted {
+  color: #888;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.task-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.task-item:hover {
+  background: #fafafa;
+}
+.task-item.completed {
+  opacity: 0.55;
+}
+.task-item.completed .task-title {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #1a56db;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.task-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.task-title {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.task-desc {
+  font-size: 0.85rem;
+  color: #666;
+}
+.task-date {
+  font-size: 0.75rem;
+  color: #aaa;
+}
