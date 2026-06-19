@@ -172,9 +172,11 @@ steps:
 # ─────────────────────────────────────────────────────────────────
 # Build options
 # ─────────────────────────────────────────────────────────────────
+
+logsBucket: "gs://${PROJECT_ID}-cloudbuild-logs"
+
 options:
   logging: GCS_ONLY
-  logsBucket: "gs://${PROJECT_ID}-cloudbuild-logs"
   machineType: "E2_HIGHCPU_8" # Faster build machine
 
 # Timeout for the entire pipeline (30 minutes)
