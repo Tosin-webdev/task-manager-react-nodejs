@@ -1,0 +1,184 @@
+# cloudbuild.yaml
+# This file lives at the root of your repository
+# Cloud Build runs it on every push to main
+
+steps:
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 1: Install React dependencies
+  # ─────────────────────────────────────────────────────────────────
+  - name: "node:20"
+    id: "install-client"
+    dir: "client"
+    entrypoint: "npm"
+    args: ["ci"] # ci is faster and stricter than install. Uses package-lock.json exactly.
+    waitFor: ["-"] # Start immediately, don't wait for anything
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 2: Install Node.js server dependencies
+  # ─────────────────────────────────────────────────────────────────
+  - name: "node:20"
+    id: "install-server"
+    dir: "server"
+    entrypoint: "npm"
+    args: ["ci"]
+    waitFor: ["-"] # Also starts immediately, parallel with step 1
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 3: Run server tests
+  # If any test fails, the pipeline stops here. No deploy happens.
+  # ─────────────────────────────────────────────────────────────────
+  - name: "node:20"
+    id: "test-server"
+    dir: "server"
+    entrypoint: "npm"
+    args: ["test"]
+    waitFor: ["install-server"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 4: Build the React app
+  # This produces the static files in client/build/
+  # ─────────────────────────────────────────────────────────────────
+  - name: "node:20"
+    id: "build-client"
+    dir: "client"
+    entrypoint: "npm"
+    args: ["run", "build"]
+    env:
+      - "REACT_APP_API_URL=/api" # React talks to /api which Nginx proxies to Node
+    waitFor: ["install-client", "test-server"] # Wait for both install AND tests
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 5: Package the application
+  # We tar up everything the VMs need: React build + Node server
+  # ─────────────────────────────────────────────────────────────────
+  - name: "ubuntu"
+    id: "package-app"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        tar -czf app-${COMMIT_SHA}.tar.gz \
+          client/build \
+          server/src \
+          server/package.json \
+          server/package-lock.json \
+          server/ecosystem.config.js \
+          nginx/default.conf
+        echo "Package created: app-${COMMIT_SHA}.tar.gz"
+        ls -lh app-${COMMIT_SHA}.tar.gz
+    waitFor: ["build-client"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 6: Upload the artifact to GCS
+  # The VM startup script downloads this specific version by COMMIT_SHA
+  # ─────────────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "upload-artifact"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud storage cp app-${COMMIT_SHA}.tar.gz \
+          gs://${PROJECT_ID}-app-releases/releases/app-${COMMIT_SHA}.tar.gz
+    waitFor: ["package-app"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 7: Run database migrations
+  # We use the Cloud SQL Auth Proxy to connect securely from Cloud Build
+  # Migrations run BEFORE new VMs boot — this is critical
+  # Your migration tool (knex, prisma, flyway, etc.) goes here
+  # ─────────────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "run-migrations"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        # Download Cloud SQL Auth Proxy
+        wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.6.0/cloud-sql-proxy.linux.amd64 \
+          -O /usr/local/bin/cloud-sql-proxy
+        chmod +x /usr/local/bin/cloud-sql-proxy
+
+        # Start proxy in background (connects to Cloud SQL securely)
+        cloud-sql-proxy --port=5432 \
+          ${PROJECT_ID}:us-central1:prod-db &
+        PROXY_PID=$!
+
+        # Wait for proxy to be ready
+        sleep 5
+
+        # Fetch DB credentials from Secret Manager
+        DB_USER=$(gcloud secrets versions access latest --secret="db-user")
+        DB_PASSWORD=$(gcloud secrets versions access latest --secret="db-password")
+        DB_NAME=$(gcloud secrets versions access latest --secret="db-name")
+
+        # Run your migrations
+        # Replace this with your actual migration command:
+        # For Knex:   cd server && npx knex migrate:latest
+        # For Prisma: cd server && npx prisma migrate deploy
+        # For Flyway: flyway migrate
+        cd server
+        DB_HOST=localhost \
+        DB_USER=$DB_USER \
+        DB_PASSWORD=$DB_PASSWORD \
+        DB_NAME=$DB_NAME \
+        npm run migrate
+
+        # Stop the proxy
+        kill $PROXY_PID
+        echo "Migrations complete"
+    waitFor: ["upload-artifact"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 8: Create a new VM instance template for this deployment
+  # Each deploy gets its own template named after the commit SHA
+  # This gives us a complete history of deployments and easy rollback
+  # ─────────────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "create-instance-template"
+    args:
+      - "compute"
+      - "instance-templates"
+      - "create"
+      - "prod-app-template-${COMMIT_SHA}"
+      - "--source-instance-template=prod-app-template-v1"
+      - "--metadata=APP_VERSION=${COMMIT_SHA}"
+      - "--description=Deployed from commit ${COMMIT_SHA} on ${BUILD_ID}"
+    waitFor: ["run-migrations"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # STEP 9: Trigger the rolling update on the MIG
+  # This is the actual deployment step
+  # --max-unavailable=0: never take a VM down before a new one is healthy
+  # --max-surge=1: add one extra VM during the update, then remove old ones
+  # Result: zero downtime
+  # ─────────────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "rolling-update"
+    args:
+      - "compute"
+      - "instance-groups"
+      - "managed"
+      - "rolling-action"
+      - "start-update"
+      - "prod-app-mig"
+      - "--version=template=prod-app-template-${COMMIT_SHA}"
+      - "--region=us-central1"
+      - "--max-surge=1"
+      - "--max-unavailable=0"
+      - "--replacement-method=substitute"
+    waitFor: ["create-instance-template"]
+
+# ─────────────────────────────────────────────────────────────────
+# Build options
+# ─────────────────────────────────────────────────────────────────
+options:
+  logging: GCS_ONLY
+  logsBucket: "gs://${PROJECT_ID}-cloudbuild-logs"
+  machineType: "E2_HIGHCPU_8" # Faster build machine
+
+# Timeout for the entire pipeline (30 minutes)
+timeout: "1800s"
+
+substitutions:
+  _REGION: "us-central1"
