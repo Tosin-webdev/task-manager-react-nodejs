@@ -173,7 +173,7 @@ steps:
 # Build options
 # ─────────────────────────────────────────────────────────────────
 
-logsBucket: "gs://${PROJECT_ID}-cloudbuild-logs"
+logsBucket:  "gs://ferrous-gate-475902-d4-cloudbuild-logs"
 
 options:
   logging: GCS_ONLY
