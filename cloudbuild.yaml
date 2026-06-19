@@ -182,5 +182,3 @@ options:
 # Timeout for the entire pipeline (30 minutes)
 timeout: "1800s"
 
-substitutions:
-  _REGION: "us-central1"
