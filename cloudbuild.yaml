@@ -176,7 +176,7 @@ steps:
       - "prod-app-mig"
       - "--version=template=prod-app-template-$COMMIT_SHA"
       - "--region=us-central1"
-      - "--max-surge=1"
+      - "--max-surge=2"
       - "--max-unavailable=0"
       - "--replacement-method=substitute"
     waitFor: ["create-instance-template"]
