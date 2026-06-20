@@ -102,15 +102,15 @@ steps:
         # Start proxy in background (connects to Cloud SQL securely)
         cloud-sql-proxy --port=5432 \
           $PROJECT_ID:us-central1:prod-db &
-        PROXY_PID=$!
+        PROXY_PID=$$!
 
         # Wait for proxy to be ready
         sleep 5
 
         # Fetch DB credentials from Secret Manager
-        DB_USER=$(gcloud secrets versions access latest --secret="db-user")
-        DB_PASSWORD=$(gcloud secrets versions access latest --secret="db-password")
-        DB_NAME=$(gcloud secrets versions access latest --secret="db-name")
+        DB_USER=$$(gcloud secrets versions access latest --secret="db-user")
+        DB_PASSWORD=$$(gcloud secrets versions access latest --secret="db-password")
+        DB_NAME=$$(gcloud secrets versions access latest --secret="db-name")
 
         # Run your migrations
         # Replace this with your actual migration command:
@@ -119,13 +119,13 @@ steps:
         # For Flyway: flyway migrate
         cd server
         DB_HOST=localhost \
-        DB_USER=$DB_USER \
-        DB_PASSWORD=$DB_PASSWORD \
-        DB_NAME=$DB_NAME \
+        DB_USER=$$DB_USER \
+        DB_PASSWORD=$$DB_PASSWORD \
+        DB_NAME=$$DB_NAME \
         npm run migrate
 
         # Stop the proxy
-        kill $PROXY_PID
+        kill $$PROXY_PID
         echo "Migrations complete"
     waitFor: ["upload-artifact"]
 
