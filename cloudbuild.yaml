@@ -57,15 +57,15 @@ steps:
     args:
       - "-c"
       - |
-        tar -czf app-${COMMIT_SHA}.tar.gz \
+        tar -czf app-$COMMIT_SHA.tar.gz \
           client/build \
           server/src \
           server/package.json \
           server/package-lock.json \
           server/ecosystem.config.js \
           nginx/default.conf
-        echo "Package created: app-${COMMIT_SHA}.tar.gz"
-        ls -lh app-${COMMIT_SHA}.tar.gz
+        echo "Package created: app-$COMMIT_SHA.tar.gz"
+        ls -lh app-$COMMIT_SHA.tar.gz
     waitFor: ["build-client"]
 
   # ─────────────────────────────────────────────────────────────────
@@ -78,8 +78,8 @@ steps:
     args:
       - "-c"
       - |
-        gcloud storage cp app-${COMMIT_SHA}.tar.gz \
-          gs://${PROJECT_ID}-app-releases/releases/app-${COMMIT_SHA}.tar.gz
+        gcloud storage cp app-$COMMIT_SHA.tar.gz \
+          gs://ferrous-gate-475902-d4-app-releases/releases/app-$COMMIT_SHA.tar.gz
     waitFor: ["package-app"]
 
   # ─────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ steps:
 
         # Start proxy in background (connects to Cloud SQL securely)
         cloud-sql-proxy --port=5432 \
-          ${PROJECT_ID}:us-central1:prod-db &
+          $PROJECT_ID:us-central1:prod-db &
         PROXY_PID=$!
 
         # Wait for proxy to be ready
@@ -140,10 +140,10 @@ steps:
       - "compute"
       - "instance-templates"
       - "create"
-      - "prod-app-template-${COMMIT_SHA}"
+      - "prod-app-template-$COMMIT_SHA"
       - "--source-instance-template=prod-app-template-v1"
-      - "--metadata=APP_VERSION=${COMMIT_SHA}"
-      - "--description=Deployed from commit ${COMMIT_SHA} on ${BUILD_ID}"
+      - "--metadata=APP_VERSION=$COMMIT_SHA"
+      - "--description=Deployed from commit $COMMIT_SHA on $BUILD_ID"
     waitFor: ["run-migrations"]
 
   # ─────────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ steps:
       - "rolling-action"
       - "start-update"
       - "prod-app-mig"
-      - "--version=template=prod-app-template-${COMMIT_SHA}"
+      - "--version=template=prod-app-template-$COMMIT_SHA"
       - "--region=us-central1"
       - "--max-surge=1"
       - "--max-unavailable=0"
@@ -173,7 +173,7 @@ steps:
 # Build options
 # ─────────────────────────────────────────────────────────────────
 
-logsBucket:  "gs://ferrous-gate-475902-d4-cloudbuild-logs"
+logsBucket: "gs://ferrous-gate-475902-d4-cloudbuild-logs"
 
 options:
   logging: GCS_ONLY
@@ -181,4 +181,3 @@ options:
 
 # Timeout for the entire pipeline (30 minutes)
 timeout: "1800s"
-
