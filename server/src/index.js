@@ -1,8 +1,9 @@
 // server/src/index.js
 // Main entry point — creates the Express app and starts the server
 
-require("dotenv").config(); // Must be the very first line
-
+require("dotenv").config({
+  path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
+}); // Must be the very first line
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
