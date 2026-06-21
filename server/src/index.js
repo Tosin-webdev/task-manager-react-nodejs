@@ -4,6 +4,12 @@
 require("dotenv").config({
   path: process.env.NODE_ENV === "production" ? ".env.production" : ".env",
 }); // Must be the very first line
+
+console.log("DEBUG — cwd:", process.cwd());
+console.log("DEBUG — __dirname:", __dirname);
+console.log("DEBUG — DB_HOST:", process.env.DB_HOST);
+console.log("DEBUG — NODE_ENV:", process.env.NODE_ENV);
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
