@@ -1,4 +1,5 @@
-# Tables are currently created manually.
+# Save at the repository root as cloudbuild.yaml.
+# Database tables are currently created manually.
 # Application VMs fetch database secrets at startup.
 
 steps:
@@ -16,7 +17,7 @@ steps:
     args: ["ci"]
     waitFor: ["-"]
 
-  # Stop deployment if automated migrations have been introduced.
+  # Stop if migrations are introduced without configuring their execution.
   - name: "node:20"
     id: "check-migration-policy"
     dir: "server"
@@ -51,7 +52,7 @@ steps:
       - "REACT_APP_API_URL=/api"
     waitFor: ["install-client", "test-server"]
 
-  # Package the React build, server code, and runtime configuration.
+  # Package the application files needed by the VMs.
   - name: "ubuntu:24.04"
     id: "package-app"
     entrypoint: "bash"
@@ -82,7 +83,7 @@ steps:
       - "gs://$PROJECT_ID-app-releases/releases/app-$COMMIT_SHA-$BUILD_ID.tar.gz"
     waitFor: ["package-app"]
 
-  # Each build creates a uniquely named instance template.
+  # A unique template name allows retries of the same commit.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "create-instance-template"
     args:
@@ -126,6 +127,7 @@ steps:
       - "--replacement-method=substitute"
     waitFor: ["create-instance-template"]
 
+  # Wait for the VMs to reach the requested template version.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "wait-for-version"
     args:
@@ -140,24 +142,42 @@ steps:
       - "--timeout=1200"
     waitFor: ["rolling-update"]
 
+  # VM rollout completion does not guarantee application readiness.
+  # Check HTTPS up to 18 times and stop immediately on HTTP 200.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "verify-https"
     entrypoint: "bash"
+    timeout: "400s"
     args:
       - "-c"
       - |
         set -euo pipefail
 
-        curl \
-          --fail \
-          --show-error \
-          --silent \
-          --connect-timeout 10 \
-          --max-time 30 \
-          --retry 10 \
-          --retry-delay 5 \
-          --retry-all-errors \
-          https://app.tcodes.dev/health
+        for attempt in {1..18}; do
+          status=$$(curl \
+            --silent \
+            --show-error \
+            --output /tmp/health-response \
+            --write-out '%{http_code}' \
+            --connect-timeout 5 \
+            --max-time 10 \
+            https://app.tcodes.dev/health) || status="000"
+
+          if [ "$$status" = "200" ]; then
+            echo "Application is ready. HTTPS health check passed."
+            exit 0
+          fi
+
+          echo "Attempt $$attempt/18: HTTP $$status."
+
+          if [ "$$attempt" -lt 18 ]; then
+            echo "Retrying in 10 seconds."
+            sleep 10
+          fi
+        done
+
+        echo "Application did not become ready within the allowed time."
+        exit 1
     waitFor: ["wait-for-version"]
 
 logsBucket: "gs://$PROJECT_ID-cloudbuild-logs"
