@@ -1,3 +1,34 @@
+# Tables are currently created manually.
+# Application VMs fetch database secrets at startup.
+
+steps:
+  - name: "node:20"
+    id: "install-client"
+    dir: "client"
+    entrypoint: "npm"
+    args: ["ci"]
+    waitFor: ["-"]
+
+  - name: "node:20"
+    id: "install-server"
+    dir: "server"
+    entrypoint: "npm"
+    args: ["ci"]
+    waitFor: ["-"]
+
+  # Stop deployment if automated migrations have been introduced.
+  - name: "node:20"
+    id: "check-migration-policy"
+    dir: "server"
+    entrypoint: "node"
+    args:
+      - "-e"
+      - |
+        const pkg = require('./package.json');
+        if (pkg.scripts && pkg.scripts.migrate) {
+          console.error('Configure database migrations before deploying.');
+          process.exit(1);
+        }
         console.log('Manual-schema setup: no migrate script configured.');
     waitFor: ["install-server"]
 
@@ -6,7 +37,8 @@
     dir: "server"
     entrypoint: "npm"
     args: ["test"]
-    env: ["CI=true"]
+    env:
+      - "CI=true"
     waitFor: ["check-migration-policy"]
 
   - name: "node:20"
@@ -19,6 +51,7 @@
       - "REACT_APP_API_URL=/api"
     waitFor: ["install-client", "test-server"]
 
+  # Package the React build, server code, and runtime configuration.
   - name: "ubuntu:24.04"
     id: "package-app"
     entrypoint: "bash"
@@ -26,7 +59,9 @@
       - "-c"
       - |
         set -euo pipefail
+
         test -f scripts/startup.sh
+
         tar -czf app-$COMMIT_SHA-$BUILD_ID.tar.gz \
           client/build \
           server/src \
@@ -34,6 +69,7 @@
           server/package-lock.json \
           server/ecosystem.config.js \
           nginx/default.conf
+
         ls -lh app-$COMMIT_SHA-$BUILD_ID.tar.gz
     waitFor: ["build-client"]
 
@@ -46,7 +82,7 @@
       - "gs://$PROJECT_ID-app-releases/releases/app-$COMMIT_SHA-$BUILD_ID.tar.gz"
     waitFor: ["package-app"]
 
-  # BUILD_ID makes template names unique even when retrying the same commit.
+  # Each build creates a uniquely named instance template.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "create-instance-template"
     args:
@@ -69,11 +105,10 @@
       - "--metadata=APP_VERSION=$COMMIT_SHA-$BUILD_ID"
       - "--metadata-from-file=startup-script=scripts/startup.sh"
       - "--tags=app-server"
-      - "--description=Commit $COMMIT_SHA; build $BUILD_ID"
+      - "--description=Deployed from commit $COMMIT_SHA on build $BUILD_ID"
     waitFor: ["upload-artifact"]
 
-  # Appropriate for a regional MIG spanning up to three zones.
-  # Configure application health checks/readiness separately.
+  # Allow up to three extra VMs during the regional rolling update.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "rolling-update"
     args:
@@ -105,8 +140,6 @@
       - "--timeout=1200"
     waitFor: ["rolling-update"]
 
-  # Check the public health endpoint after the target version is reached.
-  # This checks availability, not which commit answered the request.
   - name: "gcr.io/cloud-builders/gcloud"
     id: "verify-https"
     entrypoint: "bash"
@@ -114,9 +147,16 @@
       - "-c"
       - |
         set -euo pipefail
-        curl --fail --show-error --silent \
-          --connect-timeout 10 --max-time 30 \
-          --retry 10 --retry-delay 5 --retry-all-errors \
+
+        curl \
+          --fail \
+          --show-error \
+          --silent \
+          --connect-timeout 10 \
+          --max-time 30 \
+          --retry 10 \
+          --retry-delay 5 \
+          --retry-all-errors \
           https://app.tcodes.dev/health
     waitFor: ["wait-for-version"]
 
@@ -124,4 +164,6 @@ logsBucket: "gs://$PROJECT_ID-cloudbuild-logs"
 
 options:
   logging: GCS_ONLY
-  machineType: E2_HIGHCPU_8
+  machineType: "E2_HIGHCPU_8"
+
+timeout: "2400s"
