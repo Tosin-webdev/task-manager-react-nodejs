@@ -105,16 +105,8 @@ The deployment has three paths: user requests, automated delivery, and database 
 
 The diagram below renders directly on GitHub. The editable source is `Task-Manager-Architecture-WAF.excalidraw`; include that file in the repository if you want readers to edit the drawing.
 
-```mermaid
-flowchart TD
-  U["Browser"] --> L["HTTPS load balancer"]
-  W["Cloud Armor WAF"] -. "Attached policy" .-> L
-  L --> M["Regional MIG: private VMs"]
-  M --> N["Nginx on each VM"]
-  N --> R["React build files on VM disk"]
-  N --> A["Node.js API managed by PM2"]
-  A --> D["Cloud SQL: private PostgreSQL"]
-```
+<img width="3310" height="2514" alt="architecture_project" src="https://github.com/user-attachments/assets/2329889c-57a2-4c85-bdbd-46157ceddf76" />
+
 
 Cloud Build fetches GitHub source, tests and packages the app, uploads a release to Cloud Storage, and creates a new template for the MIG. Each new VM downloads its release and reads Secret Manager at startup. Cloud Build does not connect to the database.
 
