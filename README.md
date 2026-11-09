@@ -114,7 +114,7 @@ Engineers use an IAP-backed SSH tunnel through `db-bastion` to the Cloud SQL pri
 
 ### How Traffic Flows
 
-When a user visits your app:
+When a user visits the app:
 
 1. Their browser hits the **Cloud Load Balancer** IP address (the only thing exposed to the internet)
 2. The Load Balancer terminates SSL (handles HTTPS). Its attached Cloud Armor policy evaluates the request before forwarding allowed traffic to one of your VMs
