@@ -30,7 +30,7 @@ This repository documents a hands-on cloud engineering project: provisioning a c
 
 ## Project Status and Validation
 
-**Learning project — deployment retired.** The application was deployed and tested, then the GCP project was shut down on October 26, 2026 to avoid ongoing learning-environment costs. The project reported `DELETE_REQUESTED`; permanent deletion follows Google Cloud's retention process. There is no active public demo. Resource names beginning with `prod-` are naming examples, not a claim that this was a customer production environment.
+**Learning project — deployment retired.** The application was deployed and tested, then the GCP project has been shut down to avoid ongoing learning-environment costs. There is no active public demo. Resource names beginning with `prod-` are naming examples, not a claim that this was a customer production environment.
 
 | Check | Recorded result |
 |---|---|
