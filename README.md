@@ -103,7 +103,6 @@ The deployment has three paths: user requests, automated delivery, and database 
 
 ### The Architecture
 
-The diagram below renders directly on GitHub. The editable source is `Task-Manager-Architecture-WAF.excalidraw`; include that file in the repository if you want readers to edit the drawing.
 
 <img width="3310" height="2514" alt="architecture_project" src="https://github.com/user-attachments/assets/2329889c-57a2-4c85-bdbd-46157ceddf76" />
 
